@@ -60,26 +60,29 @@ python -m app.cli prepare --source synthetic
 python -m app.cli train --tiny --epochs 8 --lr 3e-3 --emb-lr 1e-2 --batch-size 16 --out runs/tiny-r8
 ```
 
-## Results so far (tiny model, synthetic data)
+## Results: GPT-2 (124M) + LoRA r=8 on LEDGAR
 
-Test split: 90 held-out clauses, 10 tags.
+Trained on a free Colab T4. Data is the 10 most common LEDGAR tags, 300 real contract provisions each: 2,250 train, 300 val, 450 test.
 
-| Setup | Accuracy | Macro F1 | Trainable params | % of model | Checkpoint |
-|---|---|---|---|---|---|
-| LoRA r=1 | 0.767 | 0.764 | 1,280 | 0.70% | 0.01 MB |
-| LoRA r=4 | 0.900 | 0.899 | 2,816 | 1.54% | 0.01 MB |
-| LoRA r=8 | 0.956 | 0.955 | 4,864 | 2.62% | 0.02 MB |
-| LoRA r=16 | 0.967 | 0.966 | 8,960 | 4.73% | 0.04 MB |
-| Full fine-tune | 1.000 | 1.000 | 181,248 | 100% | 0.69 MB |
+| | |
+|---|---|
+| Test accuracy | **96.4%** (macro F1 0.964) |
+| Val accuracy by epoch | 93.3% → 97.7% → 98.7% |
+| Trainable params | 304,128 of 124.7M (**0.24%**) |
+| Adapter on disk | 1.17 MB vs 476 MB full checkpoint (~408x smaller) |
+| Grad + AdamW state | ~3.5 MB vs ~1.4 GB for full fine-tuning |
+| Training time | 6 min 17 s (3 epochs, 890 ms/step, 6.9 GB peak GPU memory) |
+| Inference, batch 1 | ~15 ms per clause |
+| Merge check | 100% identical predictions, max probability drift 5e-6 |
 
-The merged model gave 100% identical predictions, with a max probability drift of 7e-7.
+Per tag, `severability` was perfect (F1 1.00) and `terms` was the weakest (F1 0.91). Full breakdown, confusion matrix and mistakes are in `examples/gpt2_r8_ledgar_report.md`.
 
-Honest caveats:
-- The synthetic set is template-generated, so these numbers are optimistic.
-- On the hand-written `examples/sample_contract.txt` the tiny model got 4 of 10 right. It learned template vocabulary, not legal meaning.
-- The real test is GPT-2 on LEDGAR. Run that and replace this table with its numbers.
+**What the mistakes show:**
+- `terms` is the vaguest LEDGAR label. Its misses scatter across `amendments`, `expenses` and `survival`.
+- Some "mistakes" look like label noise rather than model errors. One clause gold-tagged `survival` opens with "This Agreement and any non-disclosure agreements...", which reads exactly like an entire-agreement clause, and the model picked that with 100% confidence.
+- A few clauses mention a different topic in passing (an assignment clause that's mostly about tax withholding), and the model follows the dominant topic.
 
-For the full-size model, the efficiency story is what you'd expect. LoRA r=8 on `c_attn` trains about 0.3M params out of 124M (roughly 0.24%). The adapter is about 1 MB against roughly 475 MB for a full checkpoint, and gradient + AdamW state shrinks by about 400×.
+**On merging:** the merged model wasn't measurably faster at batch 1 on the GPU (14.7 vs 15.5 ms, which is within noise). With rank 8 the extra LoRA matmuls are tiny, and GPU time at this size is dominated by kernel launches. The real win from merging is deployment: you ship
 
 ## Things I learned building it
 
