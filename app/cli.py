@@ -38,7 +38,7 @@ def _load_env(path: str = ".env") -> None:
 def cmd_hello(a):
     """Sanity check: shows the device, model and that torch/transformers import."""
     import transformers
-    print("legal-document-lora-tagger is installed")
+    print("legal-document-lora-tagger is ready")
     print(f"  torch {torch.__version__}, transformers {transformers.__version__}")
     print(f"  device: {llm.get_device()}  model: {os.getenv('MODEL_NAME', 'gpt2')}")
     print(f"  synthetic tags: {', '.join(dataset.LABELS)}")

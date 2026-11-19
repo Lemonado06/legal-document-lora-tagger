@@ -115,3 +115,21 @@ def write_tagged_document(tagged: list[dict], out: str | Path, source_name: str 
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     save_json(tagged, out.with_suffix(".json"))
     return out
+
+
+class Store:
+    """Tiny JSON key-value store from the starter (kept so its smoke test passes)."""
+
+    def __init__(self, path: str = "app.json"):
+        self.path = Path(path)
+        self._data = load_json(self.path) if self.path.exists() else {}
+
+    def put(self, key: str, value) -> None:
+        self._data[key] = value
+        save_json(self._data, self.path)
+
+    def get(self, key: str, default=None):
+        return self._data.get(key, default)
+
+    def all(self) -> dict:
+        return dict(self._data)

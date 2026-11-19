@@ -50,4 +50,4 @@ def test_real_gpt2_loads_and_extends():
 
 def test_hello_runs(capsys):
     cli.main(["hello"])
-    assert "installed" in capsys.readouterr().out
+    assert "is ready" in capsys.readouterr().out
